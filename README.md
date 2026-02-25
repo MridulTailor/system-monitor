@@ -5,17 +5,19 @@ A lightweight, real-time system monitoring tool built with C++ for data collecti
 ## Features
 
 - Real-time system metrics collection (CPU, memory, network)
+- Container-aware CPU monitoring via cgroup v2 (`/sys/fs/cgroup/cpu.stat`)
 - SQLite database for persistent metric storage
 - RESTful API for data access
 - Web-based dashboard with live charts
 - Docker support for containerized deployment
 - Graceful shutdown via signal handling (SIGINT, SIGTERM)
+- Built-in CPU stress test endpoint for demo and testing purposes
 - Low resource footprint (~1% CPU overhead)
 
 ## Technology Stack
 
 **Core Monitoring**
-- C++17 — system metrics collection via Linux `/proc` filesystem
+- C++17 — system metrics collection via cgroup v2 and Linux `/proc` filesystem
 - SQLite3 — persistent metric storage
 
 **API & Dashboard**
@@ -29,10 +31,12 @@ A lightweight, real-time system monitoring tool built with C++ for data collecti
 
 ## Architecture
 
-The system consists of two components running concurrently:
+The C++ monitor and Python API run concurrently in a single container:
 
-1. **C++ Monitor** — reads `/proc/stat`, `/proc/meminfo`, and `/proc/net/dev` every 2 seconds and writes metrics to `metrics.db`
-2. **Python API Server** — exposes REST endpoints querying `metrics.db` and serves the live web dashboard
+- **C++ Monitor** — reads cgroup v2 for CPU, `/proc/meminfo` for memory, and `/proc/net/dev` for network I/O every 2 seconds, writing metrics to `metrics.db`
+- **Python API Server** — exposes REST endpoints querying `metrics.db` and serves the live web dashboard
+
+CPU usage is measured using cgroup v2 (`/sys/fs/cgroup/cpu.stat`) rather than `/proc/stat`, which gives accurate per-container CPU utilization instead of host-level stats.
 
 ## Prerequisites
 
@@ -44,6 +48,7 @@ For local development without Docker:
 - Make
 - SQLite3 development libraries (`libsqlite3-dev`)
 - Python 3.8+
+- Linux with cgroup v2 support (kernel 5.8+)
 
 ## Installation & Usage
 
@@ -53,7 +58,7 @@ For local development without Docker:
 git clone https://github.com/MridulTailor/system-monitor.git
 cd system-monitor
 
-# Build and start both services
+# Build and start
 docker compose up --build
 
 # Run in background
@@ -62,7 +67,7 @@ docker compose up --build -d
 # View logs
 docker compose logs -f
 
-# Stop services
+# Stop
 docker compose down
 ```
 
@@ -125,6 +130,37 @@ Returns memory usage history. Accepts `limit` parameter.
 ### `GET /metrics/network`
 Returns network I/O history. Accepts `limit` parameter.
 
+### `POST /demo/stress`
+Starts or stops a CPU stress test for demo purposes. Spawns configurable worker threads performing CPU-intensive computation.
+
+**Request:**
+```json
+{
+  "enabled": true,
+  "workers": 2
+}
+```
+
+**Response:**
+```json
+{
+  "status": "started",
+  "workers": 2,
+  "message": "CPU stress test started with 2 worker(s)"
+}
+```
+
+### `GET /demo/stress/status`
+Returns the current stress test state.
+
+```json
+{
+  "active": true,
+  "workers": 2,
+  "threads_alive": 2
+}
+```
+
 Interactive API docs available at `http://localhost:8000/docs`
 
 ## Project Structure
@@ -134,7 +170,7 @@ system-monitor/
 ├── src/
 │   ├── main.cpp                    # Main monitoring loop + signal handling
 │   └── collectors/
-│       ├── cpu_collector.cpp       # CPU usage via /proc/stat
+│       ├── cpu_collector.cpp       # CPU usage via cgroup v2
 │       ├── cpu_collector.h
 │       ├── mem_collector.cpp       # Memory stats via /proc/meminfo
 │       ├── mem_collector.h
@@ -143,7 +179,7 @@ system-monitor/
 │       ├── db_logger.cpp           # SQLite persistence layer
 │       └── db_logger.h
 ├── api/
-│   ├── api.py                      # FastAPI server + endpoints
+│   ├── api.py                      # FastAPI server + stress test endpoints
 │   ├── dashboard.html              # Live Chart.js dashboard
 │   └── requirements.txt
 ├── tests/                          # Unit tests
@@ -183,7 +219,7 @@ make clean
 
 ## Platform Support
 
-Linux only (Ubuntu 20.04+, Debian 11+). The monitor reads from the Linux `/proc` filesystem and is not compatible with macOS or Windows without modification. Use Docker for development on non-Linux systems.
+Linux only (Ubuntu 20.04+, Debian 11+) with cgroup v2 support (kernel 5.8+). Use Docker for development on macOS or Windows — the Docker VM provides the required Linux kernel environment.
 
 ## License
 

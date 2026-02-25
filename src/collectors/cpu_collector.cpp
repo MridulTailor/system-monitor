@@ -5,33 +5,37 @@
 #include <string>
 #include <unistd.h>
 
-struct CPUStats {
-    long user, nice, system, idle, iowait, irq, softirq;
-};
-
-CPUStats readCPUStats() {
-    std::ifstream file("/proc/stat");
+// Read cumulative CPU usage from cgroup v2
+long long readCgroupCPUUsage() {
+    std::ifstream file("/sys/fs/cgroup/cpu.stat");
+    if (!file.is_open()) {
+        std::cerr << "Failed to open /sys/fs/cgroup/cpu.stat, falling back to 0" << std::endl;
+        return 0;
+    }
+    
     std::string line;
-    std::getline(file, line);
-
-    CPUStats stats;
-    std::string cpu;
-    std::istringstream ss(line);
-    ss >> cpu >> stats.user >> stats.nice >> stats.system >> stats.idle >> stats.iowait >> stats.irq >> stats.softirq;
-    return stats;
+    while (std::getline(file, line)) {
+        if (line.find("usage_usec") == 0) {
+            std::istringstream ss(line);
+            std::string key;
+            long long value;
+            ss >> key >> value;
+            return value;
+        }
+    }
+    return 0;
 }
 
 double getCPUUsage() {
-    CPUStats s1 = readCPUStats();
+    long long usage1 = readCgroupCPUUsage();
     sleep(1);
-    CPUStats s2 = readCPUStats();
-
-    long idle1 = s1.idle + s1.iowait;
-    long idle2 = s2.idle + s2.iowait;
-    long total1 = s1.user + s1.nice + s1.system + idle1 + s1.irq + s1.softirq;
-    long total2 = s2.user + s2.nice + s2.system + idle2 + s2.irq + s2.softirq;
-
-    long totalDiff = total2 - total1;
-    long idleDiff = idle2 - idle1;
-    return (totalDiff - idleDiff) / totalDiff * 100.0;
+    long long usage2 = readCgroupCPUUsage();
+    
+    // Delta is in microseconds over 1 second (1,000,000 microseconds)
+    long long deltaUsage = usage2 - usage1;
+    
+    // CPU usage percentage: (microseconds used / microseconds in 1 second) * 100
+    // On multi-core systems, this can exceed 100% (e.g., 200% = 2 full cores)
+    double cpuPct = (deltaUsage / 1000000.0) * 100.0;
+    return cpuPct;
 }

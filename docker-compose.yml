@@ -1,18 +1,9 @@
 services:
-  monitor:
+  app:
     build: .
-    command: bash -c "make && ./monitor"
-    volumes:
-      - .:/app
-    restart: unless-stopped
-
-  api:
-    build: .
-    command: bash -c "pip3 install -r api/requirements.txt && uvicorn api.api:app --host 0.0.0.0 --port 8000 --reload"
+    command: bash -c "make && ./monitor & sleep 2 && pip3 install -r api/requirements.txt && uvicorn api.api:app --host 0.0.0.0 --port 8000 --reload"
     volumes:
       - .:/app
     ports:
       - "8000:8000"
-    depends_on:
-      - monitor
     restart: unless-stopped
