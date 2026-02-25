@@ -51,6 +51,27 @@ install_manifest.txt
 *.sqlite
 *.sqlite3
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+*.egg
+
 # Test outputs
 test_results/
 *.log
