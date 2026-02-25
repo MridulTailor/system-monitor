@@ -8,7 +8,7 @@ services:
 
   api:
     build: .
-    command: bash -c "pip3 install --break-system-packages -r api/requirements.txt && uvicorn api.api:app --host 0.0.0.0 --port 8000 --reload"
+    command: bash -c "pip3 install -r api/requirements.txt && uvicorn api.api:app --host 0.0.0.0 --port 8000 --reload"
     volumes:
       - .:/app
     ports:
