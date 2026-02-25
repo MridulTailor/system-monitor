@@ -1,0 +1,14 @@
+metrics.db
+test.cpp
+test
+tests/
+.git
+.gitignore
+*.o
+monitor
+README.md
+.DS_Store
+__pycache__
+*.pyc
+.vscode
+.idea
